@@ -1,0 +1,38 @@
+{
+  "expo": {
+    "name": "Photo Editor",
+    "slug": "photo-editor",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#6200EE"
+      },
+      "package": "com.photoeditor.app",
+      "permissions": [
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.CAMERA"
+      ]
+    },
+    "plugins": [
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow Photo Editor to access your photos.",
+          "cameraPermission": "Allow Photo Editor to use the camera."
+        }
+      ],
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "Allow Photo Editor to save photos to your library.",
+          "savePhotosPermission": "Allow Photo Editor to save photos to your library.",
+          "isAccessMediaLocationEnabled": true
+        }
+      ]
+    ]
+  }
+}
