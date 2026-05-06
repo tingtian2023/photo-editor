@@ -42,13 +42,21 @@ def _pil_to_b64(img: Image.Image) -> str:
 def _call_model(prompt: str, image: Image.Image) -> tuple[Optional[str], str]:
     buf = io.BytesIO()
     image.save(buf, format="PNG")
-    response = client.models.generate_content(
-        model=MODEL_ID,
-        contents=[
-            prompt,
-            types.Part.from_bytes(data=buf.getvalue(), mime_type="image/png"),
-        ],
-    )
+    try:
+        response = client.models.generate_content(
+            model=MODEL_ID,
+            contents=[
+                prompt,
+                types.Part.from_bytes(data=buf.getvalue(), mime_type="image/png"),
+            ],
+            config=types.GenerateContentConfig(
+                response_modalities=["image", "text"],
+            ),
+        )
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return None, f"Gemini API error: {e}"
     for part in response.candidates[0].content.parts:
         if hasattr(part, "inline_data") and part.inline_data:
             result = Image.open(io.BytesIO(part.inline_data.data))

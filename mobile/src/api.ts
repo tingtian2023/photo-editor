@@ -3,18 +3,28 @@ import { API_BASE_URL } from './config';
 type ApiResult = { image: string | null; status: string };
 
 async function post(endpoint: string, fields: Record<string, string>): Promise<ApiResult> {
+  const url = `${API_BASE_URL}/${endpoint}`;
+  const imageLen = fields.image?.length ?? 0;
+  console.log(`[API] POST ${url} | image b64 length: ${imageLen} | fields: ${Object.keys(fields).filter(k => k !== 'image').join(', ')}`);
   try {
-    const response = await fetch(`${API_BASE_URL}/${endpoint}`, {
+    const body = JSON.stringify(fields);
+    console.log(`[API] Sending request, body size: ${body.length} bytes`);
+    const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(fields),
+      body,
     });
+    console.log(`[API] Response status: ${response.status}`);
     if (!response.ok) {
       const text = await response.text();
+      console.log(`[API] Error body: ${text.slice(0, 300)}`);
       return { image: null, status: `Server error ${response.status}: ${text}` };
     }
-    return response.json();
+    const json = await response.json();
+    console.log(`[API] Success | image returned: ${!!json.image} | status: ${json.status}`);
+    return json;
   } catch (e: any) {
+    console.log(`[API] Fetch threw: ${e.message}`);
     return { image: null, status: `Network error: ${e.message}` };
   }
 }

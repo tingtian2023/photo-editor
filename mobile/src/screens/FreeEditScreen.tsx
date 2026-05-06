@@ -27,6 +27,7 @@ export default function FreeEditScreen() {
   useEffect(() => { api.getPrompts().then(setSavedPrompts); }, []);
 
   function submit() {
+    console.log(`[FreeEdit] Submit | hasImage: ${!!inputB64} | b64Length: ${inputB64?.length} | prompt: "${prompt}"`);
     if (!inputB64) return alert('Select an image first.');
     if (!prompt.trim()) return alert('Enter an instruction.');
     runEdit(() => api.freeEdit(inputB64, prompt));

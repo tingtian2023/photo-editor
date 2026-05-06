@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import * as MediaLibrary from 'expo-media-library';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 
 type ApiResult = { image: string | null; status: string };
 
@@ -17,14 +17,17 @@ export function useImageEdit() {
   }
 
   async function runEdit(apiFn: () => Promise<ApiResult>) {
+    console.log('[Edit] Starting edit');
     setLoading(true);
     setResultB64(null);
     setStatus('Processing…');
     try {
       const result = await apiFn();
+      console.log(`[Edit] Done | image: ${!!result.image} | status: ${result.status}`);
       setResultB64(result.image);
       setStatus(result.status);
     } catch (e: any) {
+      console.log(`[Edit] Exception: ${e.message}`);
       setStatus(`Error: ${e.message}`);
     } finally {
       setLoading(false);
@@ -32,18 +35,18 @@ export function useImageEdit() {
   }
 
   async function saveToGallery() {
-    if (!resultB64) return;
-    const { status: permStatus } = await MediaLibrary.requestPermissionsAsync();
-    if (permStatus !== 'granted') {
-      alert('Gallery permission denied. Enable it in Settings.');
+    if (!resultB64) {
+      alert('No image to save yet.');
       return;
     }
-    const uri = FileSystem.cacheDirectory + 'photo_editor_result.png';
-    await FileSystem.writeAsStringAsync(uri, resultB64, {
-      encoding: FileSystem.EncodingType.Base64,
-    });
-    await MediaLibrary.saveToLibraryAsync(uri);
-    alert('Saved to gallery!');
+    try {
+      const uri = (FileSystem.cacheDirectory ?? '') + 'photo_editor_result.png';
+      await FileSystem.writeAsStringAsync(uri, resultB64, { encoding: 'base64' });
+      await MediaLibrary.saveToLibraryAsync(uri);
+      alert('Saved to gallery!');
+    } catch (e: any) {
+      alert(`Save failed: ${e.message}`);
+    }
   }
 
   return { inputUri, inputB64, setInput, resultB64, status, loading, runEdit, saveToGallery };
