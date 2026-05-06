@@ -30,6 +30,7 @@ const FEATURES: {
   { screen: 'ReplaceModel', label: 'Replace Model', icon: 'person-outline', desc: 'Swap the person in photo', color: '#1565C0' },
   { screen: 'RemoveProp', label: 'Remove Prop', icon: 'trash-outline', desc: 'Erase objects naturally', color: '#4E342E' },
   { screen: 'ChangeClothing', label: 'Change Clothing', icon: 'color-palette-outline', desc: 'Swap garments on model', color: '#880E4F' },
+  { screen: 'CombineImages', label: 'Combine Images', icon: 'copy-outline', desc: 'Merge two photos side-by-side or with AI', color: '#00695C' },
 ];
 
 export default function HomeScreen() {

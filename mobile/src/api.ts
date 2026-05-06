@@ -84,6 +84,9 @@ export const api = {
   changeClothing: (b64: string, item: string, replacement: string) =>
     post('change-clothing', { image: b64, item, replacement }),
 
+  combineImages: (b64_1: string, b64_2: string, mode: string, description: string) =>
+    post('combine', { image1: b64_1, image2: b64_2, mode, description }),
+
   getPrompts: async (): Promise<Record<string, string>> => {
     try {
       const res = await fetch(`${API_BASE_URL}/prompts`);

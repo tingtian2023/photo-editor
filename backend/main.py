@@ -105,6 +105,12 @@ class ClothingRequest(ImageRequest):
     item: str
     replacement: str
 
+class CombineRequest(BaseModel):
+    image1: str
+    image2: str
+    mode: str = "side-by-side"  # "side-by-side" | "top-bottom" | "ai"
+    description: str = ""
+
 class PromptSave(BaseModel):
     name: str
     prompt: str
@@ -285,6 +291,57 @@ def change_clothing(body: ClothingRequest):
     )
     b64, status = _call_model(prompt, img)
     return {"image": b64, "status": status}
+
+
+@app.post("/combine")
+def combine_images(body: CombineRequest):
+    img1 = _b64_to_pil(body.image1).convert("RGB")
+    img2 = _b64_to_pil(body.image2).convert("RGB")
+
+    if body.mode == "side-by-side":
+        h = min(img1.height, img2.height)
+        w1 = int(img1.width * h / img1.height)
+        w2 = int(img2.width * h / img2.height)
+        img1 = img1.resize((w1, h), Image.LANCZOS)
+        img2 = img2.resize((w2, h), Image.LANCZOS)
+        out = Image.new("RGB", (w1 + w2, h), (255, 255, 255))
+        out.paste(img1, (0, 0))
+        out.paste(img2, (w1, 0))
+        return {"image": _pil_to_b64(out), "status": "Combined side by side."}
+
+    if body.mode == "top-bottom":
+        w = min(img1.width, img2.width)
+        h1 = int(img1.height * w / img1.width)
+        h2 = int(img2.height * w / img2.width)
+        img1 = img1.resize((w, h1), Image.LANCZOS)
+        img2 = img2.resize((w, h2), Image.LANCZOS)
+        out = Image.new("RGB", (w, h1 + h2), (255, 255, 255))
+        out.paste(img1, (0, 0))
+        out.paste(img2, (0, h1))
+        return {"image": _pil_to_b64(out), "status": "Combined top to bottom."}
+
+    # ai mode
+    description = body.description.strip() or "Blend these two images into a single cohesive, creative composition."
+    buf1, buf2 = io.BytesIO(), io.BytesIO()
+    img1.save(buf1, format="PNG")
+    img2.save(buf2, format="PNG")
+    try:
+        response = client.models.generate_content(
+            model=MODEL_ID,
+            contents=[
+                f"Combine these two images into one image: {description}. Make the result look natural and professional.",
+                types.Part.from_bytes(data=buf1.getvalue(), mime_type="image/png"),
+                types.Part.from_bytes(data=buf2.getvalue(), mime_type="image/png"),
+            ],
+            config=types.GenerateContentConfig(response_modalities=["image", "text"]),
+        )
+    except Exception as e:
+        import traceback; traceback.print_exc()
+        return {"image": None, "status": f"Gemini API error: {e}"}
+    for part in response.candidates[0].content.parts:
+        if hasattr(part, "inline_data") and part.inline_data:
+            return {"image": _pil_to_b64(Image.open(io.BytesIO(part.inline_data.data))), "status": "Done."}
+    return {"image": None, "status": "No image returned — try rephrasing your description."}
 
 
 if __name__ == "__main__":

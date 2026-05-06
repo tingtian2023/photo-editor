@@ -15,6 +15,7 @@ import CropScreen from './src/screens/CropScreen';
 import ReplaceModelScreen from './src/screens/ReplaceModelScreen';
 import RemovePropScreen from './src/screens/RemovePropScreen';
 import ChangeClothingScreen from './src/screens/ChangeClothingScreen';
+import CombineImagesScreen from './src/screens/CombineImagesScreen';
 
 export type RootStackParamList = {
   Home: undefined;
@@ -28,6 +29,7 @@ export type RootStackParamList = {
   ReplaceModel: undefined;
   RemoveProp: undefined;
   ChangeClothing: undefined;
+  CombineImages: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -54,6 +56,7 @@ export default function App() {
           <Stack.Screen name="ReplaceModel" component={ReplaceModelScreen} options={{ title: 'Replace Model' }} />
           <Stack.Screen name="RemoveProp" component={RemovePropScreen} options={{ title: 'Remove Prop' }} />
           <Stack.Screen name="ChangeClothing" component={ChangeClothingScreen} options={{ title: 'Change Clothing' }} />
+          <Stack.Screen name="CombineImages" component={CombineImagesScreen} options={{ title: 'Combine Images' }} />
         </Stack.Navigator>
       </NavigationContainer>
       <StatusBar style="light" />
