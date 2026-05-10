@@ -1,59 +1,112 @@
 # Shop Photo Editor
 
-AI-powered product photo editing tool built with [Gradio](https://gradio.app) and the [Google Gemini](https://ai.google.dev) image model.
+AI-powered product photo editing — FastAPI backend + React Native (Expo) mobile app for Android.
 
 ## Features
 
-| Tab | What it does |
-|-----|-------------|
+| Screen | What it does |
+|--------|-------------|
 | ✏️ **Free Edit** | Type any instruction — the AI edits your image accordingly |
 | 🖼️ **Background Swap** | Remove or replace the background on a product photo |
 | 🌿 **Lifestyle Scene** | Place your product into a realistic lifestyle setting |
-| ✨ **Enhance** | Retouch and upscale to a professional standard (4 style presets) |
-| 🔤 **Text & Watermarks** | Add text banners, remove watermarks, or crop edges |
-| 👗 **Model Editing** | Replace the model, remove a prop, or swap a clothing item |
+| ✨ **Enhance** | Retouch to a professional standard (4 style presets) |
+| 🔤 **Add Text** | Overlay text banners with custom position, size, and colour |
+| 🚫 **Remove Watermarks** | Clean text, logos, and overlays |
+| ✂️ **Crop / Trim** | Trim edges precisely |
+| 👤 **Replace Model** | Swap the person in a photo |
+| 🗑️ **Remove Prop** | Erase objects naturally |
+| 👗 **Change Clothing** | Swap garments on a model |
+| 🖼️🖼️ **Combine Images** | Merge two photos side-by-side, top-to-bottom, or with AI |
 
-Saved prompts are bookmarked locally in `saved_prompts.json` and persist across sessions.
+Saved prompts persist across sessions in `saved_prompts.json`.
+
+---
 
 ## Requirements
 
 - Python 3.10+
-- A [Google AI Studio](https://aistudio.google.com/apikey) API key with access to the Gemini image model
+- Node.js 18+
+- [Expo Go](https://expo.dev/go) installed on your Android phone
+- A [Google AI Studio](https://aistudio.google.com/apikey) API key
 
-## Setup
+---
+
+## 1 — Backend (FastAPI)
 
 ```bash
-# 1. Create and activate a virtual environment
-python3 -m venv venv
-source venv/bin/activate
+# From the repo root
 
-# 2. Install dependencies
+# Create and activate a virtual environment
+python3 -m venv venv
+source venv/bin/activate        # Windows: venv\Scripts\activate
+
+# Install Python dependencies
 pip install -r requirements.txt
 
-# 3. Add your API key
+# Add your Gemini API key
 echo "GEMINI_API_KEY=your_key_here" > .env
 
-# 4. Run
-python app.py
+# Start the backend (stays running while you use the app)
+python backend/main.py
 ```
 
-To run again later, activate the virtual environment first:
+The server listens on `0.0.0.0:8000`. Keep this terminal open.
+
+To start it again later:
 
 ```bash
 source venv/bin/activate
-python app.py
+python backend/main.py
 ```
 
-Open [http://127.0.0.1:7860](http://127.0.0.1:7860) in your browser.
+---
+
+## 2 — Mobile App (Expo / React Native)
+
+### One-time setup
+
+```bash
+cd mobile
+npm install
+```
+
+### Configure the backend URL
+
+Open [mobile/src/config.ts](mobile/src/config.ts) and set your Mac's local IP address:
+
+```ts
+export const API_BASE_URL = 'http://<your-mac-ip>:8000';
+```
+
+Find your IP: **System Settings → Wi-Fi → Details** (must be on the same Wi-Fi network as your phone).
+
+### Run
+
+```bash
+cd mobile
+npx expo start
+```
+
+A QR code will appear in the terminal. Open **Expo Go** on your phone and scan it. The app will load.
+
+> **Tip:** if you change native dependencies, run `npx expo start --clear` to reset the bundle cache.
+
+---
 
 ## Dependencies
 
+**Python**
 ```
+fastapi
+uvicorn
 google-genai
-gradio
 Pillow
 python-dotenv
 ```
+
+**Node** — managed by `mobile/package.json` (Expo SDK 54, React Native 0.81).
+
+---
 
 ## Tips for best results
 
@@ -61,4 +114,4 @@ python-dotenv
 - **Replace Model**: describe the person only (face, hair, ethnicity, age) — use *Change Clothing* for outfit changes
 - **Remove Watermarks**: works best when the watermark sits on a consistent background
 - **Crop / Trim**: use this to remove banner strips at the edges of composite product images
-- All AI features have a **Cancel** button to stop a request mid-flight
+- **Combine — AI Blend**: describe the output you want, e.g. *"place the person from image 1 into the park background from image 2"*
