@@ -65,20 +65,59 @@ def _bytes_to_pil(data: bytes) -> Image.Image:
     return Image.open(io.BytesIO(data))
 
 
-def _call_model(prompt: str, image: Image.Image):
-    from google.genai import types
-    img_bytes = _pil_to_bytes(image)
-    response = client.models.generate_content(
-        model=MODEL_ID,
-        contents=[
-            prompt,
-            types.Part.from_bytes(data=img_bytes, mime_type="image/png"),
-        ],
-    )
-    for part in response.candidates[0].content.parts:
+def _parse_model_response(response):
+    print("Model response:", response)  # Debug log
+
+    candidates = response.candidates or []
+    if not candidates or not candidates[0].content or not candidates[0].content.parts:
+        reason = getattr(getattr(response, "prompt_feedback", None), "block_reason", None)
+        return None, f"No response from model{f' (blocked: {reason})' if reason else ''}."
+    text_parts = []
+    for part in candidates[0].content.parts:
         if hasattr(part, "inline_data") and part.inline_data:
             return _bytes_to_pil(part.inline_data.data), "Done."
-    return None, "No image returned — try rephrasing your prompt."
+        if hasattr(part, "text") and part.text:
+            text_parts.append(part.text)
+    model_msg = " ".join(text_parts).strip()
+    return None, model_msg or "No image returned — try rephrasing your prompt."
+
+
+def _call_model(prompt: str, image: Image.Image):
+    from google.genai import types, errors
+    img_bytes = _pil_to_bytes(image)
+    try:
+        response = client.models.generate_content(
+            model=MODEL_ID,
+            contents=[
+                prompt,
+                types.Part.from_bytes(data=img_bytes, mime_type="image/png"),
+            ],
+            config=types.GenerateContentConfig(
+                response_modalities=["image", "text"],
+            ),
+        )
+    except errors.APIError as e:
+        return None, f"Model error ({e.code}): {e.message or 'please try again.'}"
+    return _parse_model_response(response)
+
+
+# ── Feature 0: Generate image from text (no input image) ────────────────────
+
+def generate_image(prompt: str):
+    if not prompt.strip():
+        return None, "Describe the image you want to generate."
+    from google.genai import types, errors
+    try:
+        response = client.models.generate_content(
+            model=MODEL_ID,
+            contents=[prompt],
+            config=types.GenerateContentConfig(
+                response_modalities=["image", "text"],
+            ),
+        )
+    except errors.APIError as e:
+        return None, f"Model error ({e.code}): {e.message or 'please try again.'}"
+    return _parse_model_response(response)
 
 
 # ── Feature 1: Background swap ────────────────────────────────────────────────
@@ -287,6 +326,36 @@ AI-powered photo editing for product listings — swap backgrounds, enhance qual
 """)
 
     with gr.Tabs():
+
+        # ── Generate Image ─────────────────────────────────────────────────────
+        with gr.Tab("🎨 Generate Image"):
+            gr.Markdown("Describe an image from scratch and the AI will generate it — no upload needed.")
+            with gr.Row():
+                with gr.Column(scale=2):
+                    gen_prompt = gr.Textbox(
+                        label="Prompt",
+                        placeholder="Describe the image you want to create…",
+                        lines=3,
+                        info="Be specific — subject, setting, lighting, and style all help.",
+                    )
+                    gr.Examples(
+                        examples=[
+                            "A minimalist product shot of a ceramic mug on a white background, studio lighting",
+                            "A cosy flat lay of a leather wallet on a wooden desk with coffee and a notebook",
+                            "A pair of sneakers floating against a bold gradient background, studio product photography",
+                            "A bottle of perfume on a marble pedestal with soft golden light and blurred florals",
+                        ],
+                        inputs=gen_prompt,
+                        label="Example prompts",
+                    )
+                    with gr.Row():
+                        gen_btn = gr.Button("Generate", variant="primary", scale=3)
+                        gen_cancel = gr.Button("Cancel", variant="stop", scale=1)
+                with gr.Column(scale=2):
+                    gen_out = gr.Image(type="pil", label="Result")
+                    gen_status = gr.Textbox(label="Status", interactive=False, show_label=False)
+            gen_event = gen_btn.click(generate_image, [gen_prompt], [gen_out, gen_status])
+            gen_cancel.click(fn=None, cancels=[gen_event])
 
         # ── Free Edit ──────────────────────────────────────────────────────────
         with gr.Tab("✏️ Free Edit"):

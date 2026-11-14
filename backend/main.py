@@ -2,9 +2,10 @@ import base64
 import io
 import json
 import os
+import secrets
 from typing import Optional
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from PIL import Image, ImageDraw, ImageFont
@@ -19,10 +20,29 @@ MODEL_ID = "gemini-3.1-flash-image-preview"
 
 SAVED_PROMPTS_FILE = os.path.join(os.path.dirname(__file__), "..", "saved_prompts.json")
 
-app = FastAPI(title="Photo Editor API")
+# Shared access code. Every request must send it in the X-App-Token header.
+APP_TOKEN = os.environ.get("APP_TOKEN", "")
+if len(APP_TOKEN) < 16:
+    raise RuntimeError(
+        "APP_TOKEN missing or shorter than 16 characters. Generate one with:\n"
+        "  python3 -c 'import secrets; print(secrets.token_urlsafe(24))'\n"
+        "and add APP_TOKEN=<value> to .env"
+    )
+
+# Comma-separated list of browser origins allowed to call the API,
+# e.g. "https://<user>.github.io". Defaults to "*" (native app does not need CORS).
+ALLOWED_ORIGINS = [o.strip() for o in os.environ.get("ALLOWED_ORIGINS", "*").split(",") if o.strip()]
+
+
+def require_token(x_app_token: str = Header(default="")):
+    if not secrets.compare_digest(x_app_token.encode(), APP_TOKEN.encode()):
+        raise HTTPException(status_code=401, detail="Invalid access code")
+
+
+app = FastAPI(title="Photo Editor API", dependencies=[Depends(require_token)])
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -88,6 +108,10 @@ class DescriptionRequest(ImageRequest):
 class EnhanceRequest(ImageRequest):
     style: str
 
+class ShotStyleRequest(ImageRequest):
+    style: str
+    details: str = ""
+
 class AddTextRequest(ImageRequest):
     text: str
     position: str = "Bottom Center"
@@ -114,6 +138,14 @@ class CombineRequest(BaseModel):
 class PromptSave(BaseModel):
     name: str
     prompt: str
+
+
+# ── Auth ──────────────────────────────────────────────────────────────────────
+
+@app.get("/auth/check")
+def auth_check():
+    """Protected by the global token check; lets the app validate an access code."""
+    return {"ok": True}
 
 
 # ── Prompts ───────────────────────────────────────────────────────────────────
@@ -200,6 +232,43 @@ COLOR_MAP = {
     "Yellow": (255, 215, 0,   255),
     "Blue":   (20,  100, 220, 255),
 }
+
+SHOT_STYLE_PROMPTS = {
+    "White background": (
+        "Turn this into a marketplace-style product photo: place the product on a pure white "
+        "(#FFFFFF) seamless background with soft, even studio lighting and a subtle natural shadow. "
+        "Product centred, fully visible, sharp, true-to-life colours. No props, text, or other objects."
+    ),
+    "Lifestyle": (
+        "Show this product in use or in a realistic everyday context so shoppers can judge its size "
+        "and picture it in their own lives. Keep the product clearly visible, correctly scaled, and "
+        "unchanged in design. Natural lighting, high-quality marketing photo."
+    ),
+    "Packaging": (
+        "Create a product photo showing how this product is packaged: the product next to or partly "
+        "inside clean, realistic retail packaging that suits it. Studio lighting, neutral background. "
+        "Keep the product unchanged. Do not invent brand names, logos, or readable text."
+    ),
+    "Close-up": (
+        "Create a zoomed-in, close-up detail shot of this product that highlights its texture, "
+        "materials, and build quality. Macro-style sharp focus with shallow depth of field, "
+        "professional lighting. Keep the product's real design and details unchanged."
+    ),
+    "Group shot": (
+        "Create a group shot showing this product together with matching variants (for example other "
+        "colours or sizes) or complementary products, arranged neatly as a bundle. Clean studio "
+        "background, even lighting, the original product clearly the hero. Keep its design unchanged."
+    ),
+}
+
+@app.post("/shot-style")
+def shot_style(body: ShotStyleRequest):
+    img = _b64_to_pil(body.image)
+    prompt = SHOT_STYLE_PROMPTS.get(body.style, f"Create a product photo in this style: {body.style}.")
+    if body.details.strip():
+        prompt += f" Additional details: {body.details.strip()}"
+    b64, status = _call_model(prompt, img)
+    return {"image": b64, "status": status}
 
 @app.post("/add-text")
 def add_text_overlay(body: AddTextRequest):

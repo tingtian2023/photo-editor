@@ -1,6 +1,7 @@
 # Environment
 .env
 .env.*
+!.env.example
 
 # Python
 venv/
@@ -16,18 +17,8 @@ build/
 # Data
 saved_prompts.json
 
-# Node / Expo
-mobile/node_modules/
-mobile/.expo/
-mobile/dist/
-mobile/.metro-cache/
-mobile/android/
-mobile/ios/
-mobile/*.jks
-mobile/*.p8
-mobile/*.p12
-mobile/*.key
-mobile/*.mobileprovision
+# Node (web/ has its own .gitignore for node_modules and dist)
+node_modules/
 
 # macOS
 .DS_Store
